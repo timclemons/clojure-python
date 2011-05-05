@@ -1,20 +1,19 @@
 (ns clojure-python.core
   (:use (clojure.core.*))
   (:import (org.python.util PythonInterpreter)
-           (org.python.core.*)))
-
-;; instantiate a python interpreter in the python namespace
-;(def *interp* (new org.python.util.PythonInterpreter))
+           (org.python.core.*)
+           (java.lang System String)
+           (java.util Properties )))
 
 (defn init 
   "this may later take keywords and initialize other things
   for now it is just used to specify python library paths"
-  ([interp libpath]
-     (doto interp
+  ([py libpath]
+     (doto py
        (.exec "import sys")
        (.exec (str "sys.path.append('" libpath "')"))))
-  ([interp libpath & more]
-     (init interp libpath)
+  ([py libpath & more]
+     (init py libpath)
      (apply init more))) 
 
 (defmacro py-import
@@ -90,22 +89,31 @@
     (if (seq funcs)
       (dorun (map #(import-fn module %) funcs)))))
 
-(defn python [name & {:keys
-                       [pre-properties
-                        post-properties
-                        argv
-                        sys-path
-                        modules]}]
-  (do
-    (PythonInterpreter/initialize pre-properties post-properties argv)
-    (let [interp (PythonInterpreter.)]
+(defn properties [h]
+  {:pre (map? h)}
+  (let [p (Properties.)]
+    (dorun (map #(.setProperty p (str (first %)) (str (second %))) h))
+    p))
+
+(defn python
+  [name & {:keys [post-properties argv sys-path modules]
+           :or {post-properties {} argv []}}]
+  (let [pre (System/getProperties)
+        post (properties post-properties)
+        args (into-array String (map str argv))]
+    ;; Initialization has to occur before any interpreter instances are
+    ;; created.
+    (PythonInterpreter/initialize pre post args)
+    (let [py (PythonInterpreter.)]
       (if (seq sys-path)
-        (init interp sys-path))
+        (init py sys-path))
       (loop [mods modules]
-        (let [[m args] (first mods) k (:funcs args) o (:objs args)]
-          (python-mod interp m :funcs k :objs o)
-          (recur (rest mods))))
-      interp)))
+        (println (count mods))
+        (if (seq mods)
+          (let [[m args] (first mods) k (:funcs args) o (:objs args)]
+            (python-mod py m :funcs k :objs o)
+            (recur (rest mods)))))
+      py)))
 
 (defmacro __ 
   "access attribute of class or attribute of attribute of (and so on) class"
