@@ -82,7 +82,7 @@
      `(do (import-fn ~lib ~fun)
           (import-fn ~lib ~@more-funs))))
 
-(defn python-mod [py module [& {:keys [funcs objs]}]]
+(defn python-mod [py module & {:keys [funcs objs]}]
   (do
     (py-import py module)
     (if (seq objs)
