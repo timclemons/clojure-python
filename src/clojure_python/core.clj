@@ -90,19 +90,19 @@
     (if (seq funcs)
       (dorun (map #(import-fn module %) funcs)))))
 
-(defn python [name [& {:keys
+(defn python [name & {:keys
                        [pre-properties
                         post-properties
                         argv
                         sys-path
-                        modules]}]]
+                        modules]}]
   (do
     (PythonInterpreter/initialize pre-properties post-properties argv)
     (let [interp (PythonInterpreter.)]
       (if (seq sys-path)
         (init interp sys-path))
       (loop [mods modules]
-        (let [[m args] (first modules) k (:funcs args) o (:objs args)]
+        (let [[m args] (first mods) k (:funcs args) o (:objs args)]
           (python-mod interp m :funcs k :objs o)
           (recur (rest mods))))
       interp)))
